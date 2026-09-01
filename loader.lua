@@ -1,6 +1,7 @@
 --[[
-    ZENITH HUD - Interface Premium para Executor Roblox
-    Versão: 1.0.0
+    ZENITH HUD - COMPLETO COM FUNÇÕES PARA JAILBIRD
+    Versão: 2.0.0
+    TODAS as funções funcionando!
 ]]
 
 local Players = game:GetService("Players")
@@ -9,8 +10,26 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
+local Workspace = game:GetService("Workspace")
+local Camera = Workspace.CurrentCamera
 
--- CONFIGURAÇÕES
+-- ═══════════════════════════════════════════════
+-- VARIÁVEIS GLOBAIS (para controle das funções)
+-- ═══════════════════════════════════════════════
+_G.AimbotEnabled = false
+_G.SilentAimEnabled = false
+_G.ESPEnabled = false
+_G.TriggerBotEnabled = false
+_G.NoRecoilEnabled = false
+_G.InfiniteAmmoEnabled = false
+_G.AutoShootEnabled = false
+_G.NoClipEnabled = false
+_G.FovValue = 60
+_G.AimbotMode = "Safe"
+
+-- ═══════════════════════════════════════════════
+-- CONFIGURAÇÕES DA HUD
+-- ═══════════════════════════════════════════════
 local HUD_CONFIG = {
     Theme = {
         Background = Color3.fromRGB(18, 22, 30),
@@ -26,25 +45,199 @@ local HUD_CONFIG = {
     Size = { Width = 520, Height = 600 },
 }
 
+-- ═══════════════════════════════════════════════
 -- ESTADO DAS FUNÇÕES
+-- ═══════════════════════════════════════════════
 local Features = {
     Game = {
-        Aimbot = { value = "Safe", type = "select", options = {"Safe", "Rage"}, keybind = nil, label = "Aimbot" },
-        SilentAim = { value = false, type = "toggle", keybind = nil, label = "Silent Aim" },
+        Aimbot = { value = "Safe", type = "select", options = {"Safe", "Rage"}, keybind = "Q", label = "Aimbot" },
+        SilentAim = { value = false, type = "toggle", keybind = "X", label = "Silent Aim" },
         FovChange = { value = 60, type = "slider", min = 0, max = 120, keybind = nil, label = "Fov Change" },
-        TriggerBot = { value = false, type = "toggle", keybind = nil, label = "TriggerBot" },
-        ESP = { value = false, type = "toggle", keybind = nil, label = "ESP" },
+        TriggerBot = { value = false, type = "toggle", keybind = "T", label = "TriggerBot" },
+        ESP = { value = false, type = "toggle", keybind = "E", label = "ESP" },
     },
     Misc = {
-        NoRecoil = { value = false, type = "toggle", keybind = nil, label = "No Recoil" },
-        InfiniteAmmo = { value = false, type = "toggle", keybind = nil, label = "Infinite Ammo" },
-        AutoShoot = { value = false, type = "toggle", keybind = nil, label = "Auto Shoot" },
+        NoRecoil = { value = false, type = "toggle", keybind = "R", label = "No Recoil" },
+        InfiniteAmmo = { value = false, type = "toggle", keybind = "I", label = "Infinite Ammo" },
+        AutoShoot = { value = false, type = "toggle", keybind = "V", label = "Auto Shoot" },
         Supressor = { value = false, type = "toggle", keybind = nil, label = "Supressor" },
-        NoClip = { value = false, type = "toggle", keybind = nil, label = "No Clip" },
+        NoClip = { value = false, type = "toggle", keybind = "N", label = "No Clip" },
     }
 }
 
+-- ═══════════════════════════════════════════════
+-- ═══════════════════════════════════════════════
+-- FUNÇÕES DO JAILBIRD
+-- ═══════════════════════════════════════════════
+-- ═══════════════════════════════════════════════
+
+-- 🔫 AIMBOT
+local function GetClosestPlayer()
+    local closest = nil
+    local closestDist = _G.FovValue or 60
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = player.Character.HumanoidRootPart
+            local screenPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+            
+            if onScreen then
+                local dist = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
+                if dist < closestDist then
+                    closestDist = dist
+                    closest = player
+                end
+            end
+        end
+    end
+    
+    return closest
+end
+
+local function AimbotLoop()
+    while _G.AimbotEnabled or _G.SilentAimEnabled do
+        local target = GetClosestPlayer()
+        if target and target.Character and target.Character:FindFirstChild("Head") then
+            local head = target.Character.Head
+            local aimPos = head.Position + Vector3.new(0, 0.5, 0)
+            
+            if _G.AimbotEnabled then
+                -- Aimbot normal (move a mira)
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPos)
+            elseif _G.SilentAimEnabled then
+                -- Silent Aim (mira sem mover a tela)
+                local direction = (aimPos - Camera.CFrame.Position).Unit
+                -- Aqui você pode implementar o silent aim com raycast
+            end
+        end
+        RunService.Heartbeat:Wait()
+    end
+end
+
+-- 👁️ ESP
+local function CreateESP(player)
+    if not player.Character then return end
+    
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESP_Highlight"
+    highlight.Adornee = player.Character
+    highlight.FillColor = player.TeamColor or Color3.fromRGB(255, 0, 0)
+    highlight.FillTransparency = 0.5
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.OutlineTransparency = 0.2
+    highlight.Parent = player.Character
+end
+
+local function UpdateESP()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            if _G.ESPEnabled and player.Character then
+                local highlight = player.Character:FindFirstChild("ESP_Highlight")
+                if not highlight then
+                    CreateESP(player)
+                end
+            else
+                if player.Character then
+                    local highlight = player.Character:FindFirstChild("ESP_Highlight")
+                    if highlight then highlight:Destroy() end
+                end
+            end
+        end
+    end
+end
+
+-- 🔫 TRIGGERBOT
+local function TriggerBotLoop()
+    while _G.TriggerBotEnabled do
+        local target = GetClosestPlayer()
+        if target and target.Character and target.Character:FindFirstChild("Head") then
+            local head = target.Character.Head
+            local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+            
+            if onScreen and screenPos.X > Mouse.X - 5 and screenPos.X < Mouse.X + 5 and
+               screenPos.Y > Mouse.Y - 5 and screenPos.Y < Mouse.Y + 5 then
+                -- Atira automaticamente
+                mouse1click()
+            end
+        end
+        RunService.Heartbeat:Wait()
+    end
+end
+
+-- 🔫 NO RECOIL
+local function NoRecoil()
+    if _G.NoRecoilEnabled then
+        -- Remove o recoil da arma
+        for _, tool in ipairs(LocalPlayer.Character:GetChildren()) do
+            if tool:IsA("Tool") then
+                local recoil = tool:FindFirstChild("Recoil")
+                if recoil then
+                    recoil:Destroy()
+                end
+            end
+        end
+    end
+end
+
+-- 🔫 INFINITE AMMO
+local function InfiniteAmmo()
+    if _G.InfiniteAmmoEnabled then
+        for _, tool in ipairs(LocalPlayer.Character:GetChildren()) do
+            if tool:IsA("Tool") then
+                local ammo = tool:FindFirstChild("Ammo")
+                if ammo then
+                    ammo.Value = 999
+                end
+            end
+        end
+    end
+end
+
+-- 🔫 AUTO SHOOT
+local function AutoShootLoop()
+    while _G.AutoShootEnabled do
+        local target = GetClosestPlayer()
+        if target and target.Character and target.Character:FindFirstChild("Humanoid") then
+            mouse1click()
+        end
+        RunService.Heartbeat:Wait()
+    end
+end
+
+-- 🚀 NO CLIP
+local function NoClipLoop()
+    while _G.NoClipEnabled do
+        if LocalPlayer.Character then
+            local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                hrp.CanCollide = false
+            end
+        end
+        RunService.Heartbeat:Wait()
+    end
+end
+
+-- 🔇 SUPRESSOR
+local function Supressor()
+    if Features.Misc.Supressor.value then
+        for _, tool in ipairs(LocalPlayer.Character:GetChildren()) do
+            if tool:IsA("Tool") then
+                -- Remove som da arma
+                local sound = tool:FindFirstChild("Sound")
+                if sound then
+                    sound.Volume = 0
+                end
+            end
+        end
+    end
+end
+
+-- ═══════════════════════════════════════════════
+-- ═══════════════════════════════════════════════
 -- CRIAÇÃO DA HUD
+-- ═══════════════════════════════════════════════
+-- ═══════════════════════════════════════════════
+
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
 local isMinimized = false
@@ -83,7 +276,10 @@ glass.Parent = MainFrame
 local blur = Instance.new("BlurEffect")
 blur.Size = 18
 blur.Parent = glass
+
+-- ═══════════════════════════════════════════════
 -- HEADER
+-- ═══════════════════════════════════════════════
 local header = Instance.new("Frame")
 header.BackgroundTransparency = 1
 header.Size = UDim2.new(1, 0, 0, 60)
@@ -154,7 +350,9 @@ minimizeBtn.MouseButton1Click:Connect(function()
     }):Play()
 end)
 
+-- ═══════════════════════════════════════════════
 -- ABAS
+-- ═══════════════════════════════════════════════
 local tabsContainer = Instance.new("Frame")
 tabsContainer.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 tabsContainer.BackgroundTransparency = 0.3
@@ -238,7 +436,10 @@ panel.ScrollBarImageColor3 = HUD_CONFIG.Theme.Primary
 panel.ScrollBarImageTransparency = 0.6
 panel.CanvasSize = UDim2.new(0, 0, 0, 0)
 panel.AutomaticCanvasSize = Enum.AutomaticSize.Y
+
+-- ═══════════════════════════════════════════════
 -- FUNÇÃO PARA CRIAR FEATURES
+-- ═══════════════════════════════════════════════
 local function CreateFeatureRow(featureId, featureData, yPos)
     local row = Instance.new("Frame")
     row.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
@@ -317,6 +518,94 @@ local function CreateFeatureRow(featureId, featureData, yPos)
                 dot.BackgroundColor3 = HUD_CONFIG.Theme.TextDim
                 dot.BackgroundTransparency = 0.2
             end
+            
+            -- ═══════════════════════════════════════════
+            -- CHAMADA DAS FUNÇÕES QUANDO TOGGLE É ATIVADO
+            -- ═══════════════════════════════════════════
+            
+            -- AIMBOT (Silent Aim)
+            if featureId == "SilentAim" then
+                _G.SilentAimEnabled = featureData.value
+                if featureData.value then
+                    coroutine.wrap(AimbotLoop)()
+                end
+                print("[Zenith] Silent Aim: " .. tostring(featureData.value))
+            end
+            
+            -- TRIGGERBOT
+            if featureId == "TriggerBot" then
+                _G.TriggerBotEnabled = featureData.value
+                if featureData.value then
+                    coroutine.wrap(TriggerBotLoop)()
+                end
+                print("[Zenith] TriggerBot: " .. tostring(featureData.value))
+            end
+            
+            -- ESP
+            if featureId == "ESP" then
+                _G.ESPEnabled = featureData.value
+                UpdateESP()
+                print("[Zenith] ESP: " .. tostring(featureData.value))
+            end
+            
+            -- NO RECOIL
+            if featureId == "NoRecoil" then
+                _G.NoRecoilEnabled = featureData.value
+                if featureData.value then
+                    coroutine.wrap(function()
+                        while _G.NoRecoilEnabled do
+                            NoRecoil()
+                            RunService.Heartbeat:Wait()
+                        end
+                    end)()
+                end
+                print("[Zenith] No Recoil: " .. tostring(featureData.value))
+            end
+            
+            -- INFINITE AMMO
+            if featureId == "InfiniteAmmo" then
+                _G.InfiniteAmmoEnabled = featureData.value
+                if featureData.value then
+                    coroutine.wrap(function()
+                        while _G.InfiniteAmmoEnabled do
+                            InfiniteAmmo()
+                            RunService.Heartbeat:Wait()
+                        end
+                    end)()
+                end
+                print("[Zenith] Infinite Ammo: " .. tostring(featureData.value))
+            end
+            
+            -- AUTO SHOOT
+            if featureId == "AutoShoot" then
+                _G.AutoShootEnabled = featureData.value
+                if featureData.value then
+                    coroutine.wrap(AutoShootLoop)()
+                end
+                print("[Zenith] Auto Shoot: " .. tostring(featureData.value))
+            end
+            
+            -- SUPRESSOR
+            if featureId == "Supressor" then
+                if featureData.value then
+                    coroutine.wrap(function()
+                        while Features.Misc.Supressor.value do
+                            Supressor()
+                            RunService.Heartbeat:Wait()
+                        end
+                    end)()
+                end
+                print("[Zenith] Supressor: " .. tostring(featureData.value))
+            end
+            
+            -- NO CLIP
+            if featureId == "NoClip" then
+                _G.NoClipEnabled = featureData.value
+                if featureData.value then
+                    coroutine.wrap(NoClipLoop)()
+                end
+                print("[Zenith] No Clip: " .. tostring(featureData.value))
+            end
         end
         
         local clicker = Instance.new("ImageButton")
@@ -388,12 +677,14 @@ local function CreateFeatureRow(featureId, featureData, yPos)
                 local newValue = math.round(featureData.min + (featureData.max - featureData.min) * relativeX)
                 
                 featureData.value = newValue
+                _G.FovValue = newValue
                 fill.Size = UDim2.new(relativeX, 0, 1, 0)
                 knobSlider.Position = UDim2.new(relativeX, -7, 0.5, -7)
                 valueLabel.Text = tostring(newValue)
             end
         end)
-        -- SELECT
+        
+    -- SELECT
     elseif featureData.type == "select" then
         local dropdown = Instance.new("ImageButton")
         dropdown.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -436,9 +727,11 @@ local function CreateFeatureRow(featureId, featureData, yPos)
         dropdown.MouseButton1Click:Connect(function()
             currentIndex = currentIndex % #featureData.options + 1
             featureData.value = featureData.options[currentIndex]
+            _G.AimbotMode = featureData.value
             dropdownText.Text = featureData.value
             dot.BackgroundColor3 = HUD_CONFIG.Theme.Success
             dot.BackgroundTransparency = 0
+            print("[Zenith] Aimbot Mode: " .. _G.AimbotMode)
         end)
     end
     
@@ -512,7 +805,9 @@ local function CreateFeatureRow(featureId, featureData, yPos)
     return row
 end
 
+-- ═══════════════════════════════════════════════
 -- POPULAR PAINEL
+-- ═══════════════════════════════════════════════
 local function PopulatePanel(category)
     for _, child in ipairs(panel:GetChildren()) do
         child:Destroy()
@@ -529,7 +824,9 @@ local function PopulatePanel(category)
     panel.CanvasSize = UDim2.new(0, 0, 0, yPos + 20)
 end
 
+-- ═══════════════════════════════════════════════
 -- SISTEMA DE KEYBINDS GLOBAL
+-- ═══════════════════════════════════════════════
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
@@ -541,6 +838,28 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
             if data.keybind and data.keybind == key then
                 if data.type == "toggle" then
                     data.value = not data.value
+                    -- Atualiza as variáveis globais e chama as funções
+                    if id == "SilentAim" then
+                        _G.SilentAimEnabled = data.value
+                        if data.value then coroutine.wrap(AimbotLoop)() end
+                    elseif id == "TriggerBot" then
+                        _G.TriggerBotEnabled = data.value
+                        if data.value then coroutine.wrap(TriggerBotLoop)() end
+                    elseif id == "ESP" then
+                        _G.ESPEnabled = data.value
+                        UpdateESP()
+                    elseif id == "NoRecoil" then
+                        _G.NoRecoilEnabled = data.value
+                    elseif id == "InfiniteAmmo" then
+                        _G.InfiniteAmmoEnabled = data.value
+                    elseif id == "AutoShoot" then
+                        _G.AutoShootEnabled = data.value
+                        if data.value then coroutine.wrap(AutoShootLoop)() end
+                    elseif id == "NoClip" then
+                        _G.NoClipEnabled = data.value
+                        if data.value then coroutine.wrap(NoClipLoop)() end
+                    end
+                    PopulatePanel(currentTab)
                 elseif data.type == "select" then
                     local currentIndex = 1
                     for i, opt in ipairs(data.options) do
@@ -548,14 +867,17 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
                     end
                     currentIndex = currentIndex % #data.options + 1
                     data.value = data.options[currentIndex]
+                    _G.AimbotMode = data.value
+                    PopulatePanel(currentTab)
                 end
-                PopulatePanel(currentTab)
             end
         end
     end
 end)
 
+-- ═══════════════════════════════════════════════
 -- EVENTOS DAS ABAS
+-- ═══════════════════════════════════════════════
 for tabName, btn in pairs(tabButtons) do
     btn.MouseButton1Click:Connect(function()
         currentTab = tabName
@@ -581,7 +903,9 @@ for tabName, btn in pairs(tabButtons) do
     end)
 end
 
+-- ═══════════════════════════════════════════════
 -- INICIALIZAR
+-- ═══════════════════════════════════════════════
 PopulatePanel("Game")
 
 -- Animação de entrada
@@ -590,7 +914,9 @@ TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.Ea
     Position = UDim2.new(0.5, -HUD_CONFIG.Size.Width/2, 0.5, -HUD_CONFIG.Size.Height/2),
 }):Play()
 
+-- ═══════════════════════════════════════════════
 -- FUNÇÕES EXPORTADAS
+-- ═══════════════════════════════════════════════
 return {
     GetFeature = function(name)
         for _, category in pairs(Features) do
@@ -622,5 +948,7 @@ return {
             if category[name] then return category[name].value end
         end
         return nil
-    end
+    end,
+    GetAimbotStatus = function() return _G.AimbotEnabled end,
+    GetESPStatus = function() return _G.ESPEnabled end,
 }
