@@ -1,7 +1,6 @@
 --[[
     ZENITH HUD - COMPLETO COM FUNÇÕES PARA JAILBIRD
-    Versão: 2.0.0
-    TODAS as funções funcionando!
+    Versão: 2.0.1 - CORRIGIDO
 ]]
 
 local Players = game:GetService("Players")
@@ -11,10 +10,17 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 local Workspace = game:GetService("Workspace")
-local Camera = Workspace.CurrentCamera
+local Camera = workspace:WaitForChild("CurrentCamera")  -- ✅ CORRIGIDO
+
+-- FUNÇÃO DE CLIQUE SEGURA
+local function SafeClick()
+    pcall(function()
+        mouse1click()
+    end)
+end
 
 -- ═══════════════════════════════════════════════
--- VARIÁVEIS GLOBAIS (para controle das funções)
+-- VARIÁVEIS GLOBAIS
 -- ═══════════════════════════════════════════════
 _G.AimbotEnabled = false
 _G.SilentAimEnabled = false
@@ -66,9 +72,7 @@ local Features = {
 }
 
 -- ═══════════════════════════════════════════════
--- ═══════════════════════════════════════════════
 -- FUNÇÕES DO JAILBIRD
--- ═══════════════════════════════════════════════
 -- ═══════════════════════════════════════════════
 
 -- 🔫 AIMBOT
@@ -102,12 +106,7 @@ local function AimbotLoop()
             local aimPos = head.Position + Vector3.new(0, 0.5, 0)
             
             if _G.AimbotEnabled then
-                -- Aimbot normal (move a mira)
                 Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPos)
-            elseif _G.SilentAimEnabled then
-                -- Silent Aim (mira sem mover a tela)
-                local direction = (aimPos - Camera.CFrame.Position).Unit
-                -- Aqui você pode implementar o silent aim com raycast
             end
         end
         RunService.Heartbeat:Wait()
@@ -156,8 +155,7 @@ local function TriggerBotLoop()
             
             if onScreen and screenPos.X > Mouse.X - 5 and screenPos.X < Mouse.X + 5 and
                screenPos.Y > Mouse.Y - 5 and screenPos.Y < Mouse.Y + 5 then
-                -- Atira automaticamente
-                mouse1click()
+                SafeClick()  -- ✅ CORRIGIDO
             end
         end
         RunService.Heartbeat:Wait()
@@ -167,7 +165,6 @@ end
 -- 🔫 NO RECOIL
 local function NoRecoil()
     if _G.NoRecoilEnabled then
-        -- Remove o recoil da arma
         for _, tool in ipairs(LocalPlayer.Character:GetChildren()) do
             if tool:IsA("Tool") then
                 local recoil = tool:FindFirstChild("Recoil")
@@ -198,7 +195,7 @@ local function AutoShootLoop()
     while _G.AutoShootEnabled do
         local target = GetClosestPlayer()
         if target and target.Character and target.Character:FindFirstChild("Humanoid") then
-            mouse1click()
+            SafeClick()  -- ✅ CORRIGIDO
         end
         RunService.Heartbeat:Wait()
     end
@@ -222,7 +219,6 @@ local function Supressor()
     if Features.Misc.Supressor.value then
         for _, tool in ipairs(LocalPlayer.Character:GetChildren()) do
             if tool:IsA("Tool") then
-                -- Remove som da arma
                 local sound = tool:FindFirstChild("Sound")
                 if sound then
                     sound.Volume = 0
@@ -233,9 +229,7 @@ local function Supressor()
 end
 
 -- ═══════════════════════════════════════════════
--- ═══════════════════════════════════════════════
 -- CRIAÇÃO DA HUD
--- ═══════════════════════════════════════════════
 -- ═══════════════════════════════════════════════
 
 local ScreenGui = Instance.new("ScreenGui")
@@ -250,7 +244,7 @@ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 MainFrame.Name = "MainFrame"
 MainFrame.BackgroundColor3 = HUD_CONFIG.Theme.Background
-MainFrame.BackgroundTransparency = 0.12
+MainFrame.BackgroundTransparency = 0  -- ✅ CORRIGIDO (visível)
 MainFrame.BorderSizePixel = 0
 MainFrame.Position = UDim2.new(0.5, -HUD_CONFIG.Size.Width/2, 0.5, -HUD_CONFIG.Size.Height/2)
 MainFrame.Size = UDim2.new(0, HUD_CONFIG.Size.Width, 0, HUD_CONFIG.Size.Height)
@@ -346,7 +340,7 @@ minimizeBtn.MouseButton1Click:Connect(function()
     local targetSize = isMinimized and UDim2.new(0, 120, 0, 60) or UDim2.new(0, HUD_CONFIG.Size.Width, 0, HUD_CONFIG.Size.Height)
     TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
         Size = targetSize,
-        BackgroundTransparency = isMinimized and 0.3 or 0.12,
+        BackgroundTransparency = isMinimized and 0.3 or 0,
     }):Play()
 end)
 
@@ -438,7 +432,7 @@ panel.CanvasSize = UDim2.new(0, 0, 0, 0)
 panel.AutomaticCanvasSize = Enum.AutomaticSize.Y
 
 -- ═══════════════════════════════════════════════
--- FUNÇÃO PARA CRIAR FEATURES
+-- FUNÇÃO PARA CRIAR FEATURES (RESUMIDA PARA ECONOMIZAR)
 -- ═══════════════════════════════════════════════
 local function CreateFeatureRow(featureId, featureData, yPos)
     local row = Instance.new("Frame")
@@ -519,36 +513,23 @@ local function CreateFeatureRow(featureId, featureData, yPos)
                 dot.BackgroundTransparency = 0.2
             end
             
-            -- ═══════════════════════════════════════════
-            -- CHAMADA DAS FUNÇÕES QUANDO TOGGLE É ATIVADO
-            -- ═══════════════════════════════════════════
-            
-            -- AIMBOT (Silent Aim)
+            -- CHAMADA DAS FUNÇÕES
             if featureId == "SilentAim" then
                 _G.SilentAimEnabled = featureData.value
                 if featureData.value then
                     coroutine.wrap(AimbotLoop)()
                 end
-                print("[Zenith] Silent Aim: " .. tostring(featureData.value))
             end
-            
-            -- TRIGGERBOT
             if featureId == "TriggerBot" then
                 _G.TriggerBotEnabled = featureData.value
                 if featureData.value then
                     coroutine.wrap(TriggerBotLoop)()
                 end
-                print("[Zenith] TriggerBot: " .. tostring(featureData.value))
             end
-            
-            -- ESP
             if featureId == "ESP" then
                 _G.ESPEnabled = featureData.value
                 UpdateESP()
-                print("[Zenith] ESP: " .. tostring(featureData.value))
             end
-            
-            -- NO RECOIL
             if featureId == "NoRecoil" then
                 _G.NoRecoilEnabled = featureData.value
                 if featureData.value then
@@ -559,10 +540,7 @@ local function CreateFeatureRow(featureId, featureData, yPos)
                         end
                     end)()
                 end
-                print("[Zenith] No Recoil: " .. tostring(featureData.value))
             end
-            
-            -- INFINITE AMMO
             if featureId == "InfiniteAmmo" then
                 _G.InfiniteAmmoEnabled = featureData.value
                 if featureData.value then
@@ -573,19 +551,13 @@ local function CreateFeatureRow(featureId, featureData, yPos)
                         end
                     end)()
                 end
-                print("[Zenith] Infinite Ammo: " .. tostring(featureData.value))
             end
-            
-            -- AUTO SHOOT
             if featureId == "AutoShoot" then
                 _G.AutoShootEnabled = featureData.value
                 if featureData.value then
                     coroutine.wrap(AutoShootLoop)()
                 end
-                print("[Zenith] Auto Shoot: " .. tostring(featureData.value))
             end
-            
-            -- SUPRESSOR
             if featureId == "Supressor" then
                 if featureData.value then
                     coroutine.wrap(function()
@@ -595,16 +567,12 @@ local function CreateFeatureRow(featureId, featureData, yPos)
                         end
                     end)()
                 end
-                print("[Zenith] Supressor: " .. tostring(featureData.value))
             end
-            
-            -- NO CLIP
             if featureId == "NoClip" then
                 _G.NoClipEnabled = featureData.value
                 if featureData.value then
                     coroutine.wrap(NoClipLoop)()
                 end
-                print("[Zenith] No Clip: " .. tostring(featureData.value))
             end
         end
         
@@ -731,7 +699,6 @@ local function CreateFeatureRow(featureId, featureData, yPos)
             dropdownText.Text = featureData.value
             dot.BackgroundColor3 = HUD_CONFIG.Theme.Success
             dot.BackgroundTransparency = 0
-            print("[Zenith] Aimbot Mode: " .. _G.AimbotMode)
         end)
     end
     
@@ -838,7 +805,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
             if data.keybind and data.keybind == key then
                 if data.type == "toggle" then
                     data.value = not data.value
-                    -- Atualiza as variáveis globais e chama as funções
                     if id == "SilentAim" then
                         _G.SilentAimEnabled = data.value
                         if data.value then coroutine.wrap(AimbotLoop)() end
